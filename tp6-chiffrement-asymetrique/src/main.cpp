@@ -14,6 +14,70 @@
 mpz_t d, e, n;
 mpz_t M, c;
 
+void exponentiation_by_squaring(mpz_t &m, const mpz_t &g, const mpz_t &k, const mpz_t &p)
+{
+    mpz_t g_tmp, k_tmp, p_tmp;
+    mpz_init(g_tmp);
+    mpz_init(k_tmp);
+    mpz_init(p_tmp);
+    mpz_set(g_tmp, g);
+    mpz_set(k_tmp, k);
+    mpz_set(p_tmp, p);
+
+    if (mpz_cmp_si(k_tmp, 0) < 0)
+    { //si k<0
+        mpz_t one;
+        mpz_init(one);
+        mpz_set_ui(one, 1);
+
+        mpz_fdiv_q(g_tmp, one, g_tmp); //g=1/g
+        mpz_mul_si(k_tmp, k_tmp, -1);  //k=k*(-1)
+        mpz_clear(one);
+    }
+    if (mpz_cmp_si(k_tmp, 0) == 0)
+    {
+        mpz_set_ui(m, 1);
+        return;
+    }
+
+    mpz_t y;
+    mpz_init(y);
+    mpz_set_ui(y, 1);
+
+    // while k > 1
+    while (mpz_cmp_si(k_tmp, 1) > 0)
+    {
+        // if k is even
+        if (mpz_even_p(k_tmp) != 0)
+        {
+            // g = g * g
+            mpz_mul(g_tmp, g_tmp, g_tmp);
+            // g = g mod p
+            mpz_mod(g_tmp, g_tmp, p_tmp);
+            // k = k / 2
+            mpz_fdiv_q_ui(k_tmp, k_tmp, 2);
+        }
+        else
+        {
+            // y = g * y
+            mpz_mul(y, g_tmp, y);
+            // g = g * g
+            mpz_mul(g_tmp, g_tmp, g_tmp);
+            // k = (k - 1) / 2
+            mpz_sub_ui(k_tmp, k_tmp, 1);
+            mpz_fdiv_q_ui(k_tmp, k_tmp, 2);
+        }
+    }
+
+    // m = g * y
+
+    std::cout << "g: " << mpz_get_ui(g_tmp) << std::endl;
+    std::cout << "y: " << mpz_get_ui(y) << std::endl;
+
+    mpz_mul(m, g_tmp, y);
+    mpz_mod(m, m, p_tmp);
+}
+
 /* Main subroutine */
 int main()
 {
@@ -38,37 +102,55 @@ int main()
     /*
      *  Step 1 : Get two large primes.
      */
-    mpz_t p, q;
-    mpz_init(p);
-    mpz_init(q);
-
-
-
-//
-    /*mpz_t p;
-    mpz_init(p);
-    mpz_set_str(p, argv[2], 10);
-    mpz_nextprime(p, p);*/
-//
-
-
+    mpz_t p, p_tmp, q, q_tmp, seed;
     gmp_randstate_t state;
 
-    gmp_randinit_default(state);
-    gmp_randseed(state, rs->_state->_mp_seed);
-
-
-
-    //mpz_init_set_str(p, "47", 0);
-    mpz_init_set_str(p, gmp_randinit_default(state), 0);
-    mpz_init_set_str(q, "71", 0);
     char p_str[1000];
+    char p_tmp_str[1000];
     char q_str[1000];
+    char q_tmp_str[1000];
+
+    mpz_init(p);
+    mpz_init(p_tmp);
+    mpz_init(q);
+    mpz_init(q_tmp);
+    mpz_init(seed);
+
+    // mpz_init_set_str(p, "47", 0);
+    // mpz_init_set_str(q, "71", 0);
+
+    // -- Generation and randomisation of a prime number p
+    srand(time(NULL)); // -- Initialization of a seed based on time
+
+    mpz_init_set_str(seed, std::to_string(1000 + rand() % 100000).c_str(), 0);
+
+    gmp_randinit_default(state);
+    gmp_randseed(state, seed);
+
+    mpz_urandomm(p_tmp, state, seed);
+    mpz_urandomm(q_tmp, state, seed);
+
+    mpz_nextprime(p, p_tmp);
+    mpz_nextprime(q, q_tmp);
+
+    mpz_get_str(p_tmp_str, 10, p_tmp);
     mpz_get_str(p_str, 10, p);
+
+    mpz_get_str(q_tmp_str, 10, q_tmp);
     mpz_get_str(q_str, 10, q);
 
+    std::cout << "**************************************" << std::endl;
+    std::cout << "Random 'p' tmp = " << p_tmp_str << std::endl;
     std::cout << "Random Prime 'p' = " << p_str << std::endl;
+    std::cout << "Random 'q' tmp = " << q_tmp_str << std::endl;
     std::cout << "Random Prime 'q' = " << q_str << std::endl;
+    std::cout << "**************************************" << std::endl;
+
+    // mpz_get_str(p_str, 10, p);
+    // mpz_get_str(q_str, 10, q);
+
+    // std::cout << "Random Prime 'p' = " << p_str << std::endl;
+    // std::cout << "Random Prime 'q' = " << q_str << std::endl;
 
     /*
      *  Step 2 : Calculate n (=pq) ie the 1024 bit modulus
@@ -99,15 +181,39 @@ int main()
     /*
      *  Step 3 : Get small odd integer e such that gcd(e,x) = 1.
      */
-    mpz_init_set_str(e, "79", 0);
+
+    mpz_t e, e_tmp, pgcd;
+    mpz_init(e);
+    mpz_init(e_tmp);
+    mpz_init(pgcd);
+
     char e_str[1000];
+
+    srand(time(NULL));
+    do
+    {
+        mpz_init_set_str(seed, std::to_string(rand()).c_str(), 0);
+
+        gmp_randinit_default(state);
+        gmp_randseed(state, seed);
+
+        mpz_urandomm(e_tmp, state, seed);
+        mpz_init_set_str(e, std::to_string(mpz_get_ui(e_tmp) % mpz_get_ui(x)).c_str(), 0);
+
+        mpz_gcd(pgcd, e, x);
+    } while (mpz_get_ui(pgcd) != 1);
+
+    // mpz_init_set_str(e, "79", 0);
     mpz_get_str(e_str, 10, e);
     std::cout << "\t e = " << e_str << std::endl;
 
     /*
      *  Step 4 : Calculate unique d such that ed = 1(mod x)
      */
-    mpz_init_set_str(d, "1019", 0);
+    if (mpz_invert(d, e, x) == 0)
+        std::cout << "Error while inversing e mod x" << std::endl;
+
+    // mpz_init_set_str(d, "1019", 0);
     char d_str[1000];
     mpz_get_str(d_str, 10, d);
     std::cout << "\t d = " << d_str << std::endl
@@ -118,31 +224,47 @@ int main()
      */
     std::cout << "Public Keys  (e,n): ( " << e_str << " , " << n_str << " )" << std::endl;
     std::cout << "Private Keys (d,n): ( " << d_str << " , " << n_str << " )" << std::endl;
+
     /*
      *  Encrypt
      */
-
-    //TODO
-    mpz_init_set_str(M, "11", 0);
-    char c_str[1000];
-    mpz_powm(c, M, e, n);
-    mpz_get_str(c_str, 10, c);
-    std::cout << "Ciphered message c: " << c_str << std::endl;
-
-    /*
-     * Decrypt
-     */
-    //mpz_mul(x,p_minus_1,q_minus_1);
-    //mpz_invert(d,e,x);
-
-    //std::cout << "d: " << d_str << std::endl;
-
-    mpz_get_str(d_str,10,d);
-    mpz_powm(M,c,d,n);
+    mpz_t m;
+    mpz_t c;
+    
+    mpz_init(m);
+    mpz_init(c);
 
     char m_str[1000];
-    mpz_get_str(m_str,10,M);
-    std::cout << "M: " << m_str << std::endl;
+    char c_str[1000];
+
+    std::cout << "Message à chiffrer " << std::endl;
+    std::cin >> m_str;
+    // TODO: check m < n
+    mpz_set_str(m, m_str, 10);
+    // mpz_powm(c, m, e, n);
+    exponentiation_by_squaring(c, m, e, n);
+    mpz_get_str(c_str, 10, c);
+    std::cout << "Message chiffré: " << c_str << std::endl;
+
+    /*
+     *  Decrypt
+     */
+    mpz_t c2;
+    mpz_t m2;
+    
+    mpz_init(m2);
+    mpz_init(c2);
+
+    char m2_str[1000];
+    char c2_str[1000];
+
+    std::cout << "Message à déchiffrer ? " << std::endl;
+    std::cin >> c2_str;
+    mpz_set_str(c2, c2_str, 10);
+    // mpz_powm(m2, c2, d, n);
+    exponentiation_by_squaring(m2, c2, d, n);
+    mpz_get_str(m2_str, 10, m2);
+    std::cout << "Message déchiffré: " << m2_str << std::endl;
 
     /* Clean up the GMP integers */
     mpz_clear(p_minus_1);
@@ -150,11 +272,11 @@ int main()
     mpz_clear(x);
     mpz_clear(p);
     mpz_clear(q);
-    
+
     mpz_clear(d);
     mpz_clear(e);
     mpz_clear(n);
-    
+
     mpz_clear(M);
     mpz_clear(c);
 }
