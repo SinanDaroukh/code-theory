@@ -71,8 +71,8 @@ void exponentiation_by_squaring(mpz_t &m, const mpz_t &g, const mpz_t &k, const 
     }
 
     // m = g * y
-    std::cout << "g: " << mpz_get_ui(g_tmp) << std::endl;
-    std::cout << "y: " << mpz_get_ui(y) << std::endl;
+    // std::cout << "g: " << mpz_get_ui(g_tmp) << std::endl;
+    // std::cout << "y: " << mpz_get_ui(y) << std::endl;
 
     mpz_mul(m, g_tmp, y);
     mpz_mod(m, m, p_tmp);
@@ -95,18 +95,18 @@ void rabin_miller_step_1_dif(mpz_t &s, mpz_t &t, const mpz_t &n)
         mpz_add_ui(s, s, 1);
         mpz_get_str(t_str, 10, t);
         mpz_get_str(s_str, 10, s);
-        std::cout << " t : " << t_str << std::endl;
-        std::cout << " s : " << s_str << std::endl;
+        // std::cout << " t : " << t_str << std::endl;
+        // std::cout << " s : " << s_str << std::endl;
     }
 }
 
 bool rabin_miller(int k, const mpz_t &n)
 {
-    std::cout << "Rabin Miller" << std::endl;
+    // std::cout << "Rabin Miller" << std::endl;
 
     char n_str[1000];
     mpz_get_str(n_str, 10, n);
-    std::cout << "n: " << n_str << std::endl;
+    // std::cout << "n: " << n_str << std::endl;
 
     if (mpz_get_si(n) <= 2 && mpz_odd_p(n))
         return false;
@@ -127,8 +127,8 @@ bool rabin_miller(int k, const mpz_t &n)
 
     mpz_get_str(t_str, 10, t);
     mpz_get_str(s_str, 10, s);
-    std::cout << "s: " << s_str << std::endl;
-    std::cout << "t: " << t_str << std::endl;
+    // std::cout << "s: " << s_str << std::endl;
+    // std::cout << "t: " << t_str << std::endl;
     mpz_t seed;
     mpz_init_set_str(seed, std::to_string(1000 + rand() % 100000).c_str(), 0);
     gmp_randinit_default(state);
@@ -169,31 +169,90 @@ bool rabin_miller(int k, const mpz_t &n)
 void nextprime(mpz_t &rop, const mpz_t op)
 {
     mpz_set(rop, op);
-    char rop_str[1000], op_str[1000];
-
-    mpz_get_str(rop_str, 10, rop);
-    mpz_get_str(op_str, 10, op);
-    std::cout << " rop : " << rop_str << std::endl;
-    std::cout << " op : " << op_str << std::endl;
-
-    std::cout << "Odd OP ? " << mpz_odd_p(rop) << std::endl;
     if (mpz_even_p(op) != 0)
     {
         mpz_add_ui(rop, op, 1);
-        mpz_get_str(rop_str, 10, rop);
-        mpz_get_str(op_str, 10, op);
-        std::cout << " rop : " << rop_str << std::endl;
-        std::cout << " op : " << op_str << std::endl;
     } // If op is even
-    std::cout << "Odd OP ? " << mpz_odd_p(rop) << std::endl;
     while (rabin_miller(100000, rop) != true)
     {
         mpz_add_ui(rop, rop, 2);
-        mpz_get_str(rop_str, 10, rop);
-        mpz_get_str(op_str, 10, op);
-        std::cout << " rop : " << rop_str << std::endl;
-        std::cout << " op : " << op_str << std::endl;
     }
+}
+
+void euclide_etendu(const mpz_t a, const mpz_t b, mpz_t &r, mpz_t &u, mpz_t &v)
+{
+    mpz_t r_prime, u_prime, v_prime, q, rs, us, vs, q_mult_r_prime, q_mult_u_prime, q_mult_v_prime;
+
+    mpz_init_set(r, a);
+    mpz_init_set_ui(u, 1);
+    mpz_init(v);
+    mpz_init_set(r_prime, b);
+    mpz_init(u_prime);
+    mpz_init_set_ui(v_prime, 1);
+    mpz_init(rs);
+    mpz_init(us);
+    mpz_init(vs);
+    mpz_init(q);
+    mpz_init(q_mult_r_prime);
+    mpz_init(q_mult_u_prime);
+    mpz_init(q_mult_v_prime);
+
+    while (mpz_cmp_ui(r_prime, 0) != 0)
+    {
+        mpz_fdiv_q(q, r, r_prime);
+
+        mpz_set(rs, r);
+        mpz_set(us, u);
+        mpz_set(vs, v);
+
+        mpz_set(r, r_prime);
+        mpz_set(u, u_prime);
+        mpz_set(v, v_prime);
+
+        mpz_mul(q_mult_r_prime, q, r_prime);
+        mpz_sub(r_prime, rs, q_mult_r_prime);
+
+        mpz_mul(q_mult_u_prime, q, u_prime);
+        mpz_sub(u_prime, us, q_mult_u_prime);
+
+        mpz_mul(q_mult_v_prime, q, v_prime);
+        mpz_sub(v_prime, vs, q_mult_v_prime);
+    }
+
+    mpz_clear(r_prime);
+    mpz_clear(u_prime);
+    mpz_clear(v_prime);
+    mpz_clear(q);
+    mpz_clear(q_mult_r_prime);
+    mpz_clear(q_mult_u_prime);
+    mpz_clear(q_mult_v_prime);
+}
+
+void invert(mpz_t &rop, const mpz_t op1, const mpz_t op2)
+{
+    mpz_t r, u, v;
+
+    char r_str[1000], u_str[1000], v_str[1000];
+
+    mpz_init(r);
+    mpz_init(u);
+    mpz_init(v);
+
+    euclide_etendu(op1, op2, r, u, v);
+
+    mpz_get_str(r_str, 10, r);
+    mpz_get_str(u_str, 10, u);
+    mpz_get_str(v_str, 10, v);
+
+    std::cout << "r: " << r_str << std::endl;
+    std::cout << "u: " << u_str << std::endl;
+    std::cout << "v :" << v_str << std::endl;
+
+    mpz_abs(rop, u);
+
+    mpz_clear(r);
+    mpz_clear(u);
+    mpz_clear(v);
 }
 
 /* Main subroutine */
@@ -207,23 +266,6 @@ int main()
     mpz_init(M);
     mpz_init(c);
 
-    mpz_t fg;
-    mpz_init(fg);
-    mpz_set_ui(fg, 37447);
-
-    bool is_primal = rabin_miller(100000, fg);
-    if (is_primal)
-        std::cout << "Rabi_Jacob : Number primal" << std::endl;
-    else
-        std::cout << "Rabi_Jacob : Number composite" << std::endl;
-
-    mpz_add_ui(fg, fg, 2);
-
-    is_primal = rabin_miller(100000, fg);
-    if (is_primal)
-        std::cout << "Rabi_Jacob : Number primal" << std::endl;
-    else
-        std::cout << "Rabi_Jacob : Number composite" << std::endl;
     /* This function creates the keys. The basic algorithm is...
      *
      *  1. Generate two large distinct primes p and q randomly
@@ -313,8 +355,7 @@ int main()
      *  Step 3 : Get small odd integer e such that gcd(e,x) = 1.
      */
 
-    mpz_t e, e_tmp, pgcd;
-    mpz_init(e);
+    mpz_t e_tmp, pgcd;
     mpz_init(e_tmp);
     mpz_init(pgcd);
 
@@ -341,8 +382,14 @@ int main()
     /*
      *  Step 4 : Calculate unique d such that ed = 1(mod x)
      */
-    if (mpz_invert(d, e, x) == 0)
-        std::cout << "Error while inversing e mod x" << std::endl;
+    // if (mpz_invert(d, e, x) == 0)
+    //     std::cout << "Error while inversing e mod x" << std::endl;
+
+    char x_str[1000];
+    mpz_get_str(x_str, 10, x);
+    std::cout << "\t x = " << x_str << std::endl;
+
+    invert(d, e, x);
 
     // mpz_init_set_str(d, "1019", 0);
     char d_str[1000];
