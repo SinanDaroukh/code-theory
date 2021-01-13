@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <gmp.h>
+#include <cmath>
 
 #define BITSTRENGTH 14              /* size of modulus (n) in bits */
 #define PRIMESIZE (BITSTRENGTH / 2) /* size of the primes p and q  */
@@ -70,12 +71,129 @@ void exponentiation_by_squaring(mpz_t &m, const mpz_t &g, const mpz_t &k, const 
     }
 
     // m = g * y
-
     std::cout << "g: " << mpz_get_ui(g_tmp) << std::endl;
     std::cout << "y: " << mpz_get_ui(y) << std::endl;
 
     mpz_mul(m, g_tmp, y);
     mpz_mod(m, m, p_tmp);
+}
+
+void rabin_miller_step_1_dif(mpz_t &s, mpz_t &t, const mpz_t &n)
+{
+    mpz_t local_n;
+    char t_str[1000];
+    char s_str[1000];
+    mpz_init(local_n);
+
+    mpz_set(t, n);
+    mpz_sub_ui(t, t, 1);
+    mpz_set_ui(s, 0);
+
+    while (mpz_even_p(t))
+    {
+        mpz_fdiv_q_ui(t, t, 2);
+        mpz_add_ui(s, s, 1);
+        mpz_get_str(t_str, 10, t);
+        mpz_get_str(s_str, 10, s);
+        std::cout << " t : " << t_str << std::endl;
+        std::cout << " s : " << s_str << std::endl;
+    }
+}
+
+bool rabin_miller(int k, const mpz_t &n)
+{
+    std::cout << "Rabin Miller" << std::endl;
+
+    char n_str[1000];
+    mpz_get_str(n_str, 10, n);
+    std::cout << "n: " << n_str << std::endl;
+
+    if (mpz_get_si(n) <= 2 && mpz_odd_p(n))
+        return false;
+
+    gmp_randstate_t state;
+    mpz_t t, s, a, x, r, tmp_oprd;
+
+    char t_str[1000];
+    char s_str[1000];
+
+    mpz_init(t);
+    mpz_init(s);
+    mpz_init(a);
+    mpz_init(x);
+    mpz_init(r);
+    mpz_init(tmp_oprd);
+    rabin_miller_step_1_dif(s, t, n);
+
+    mpz_get_str(t_str, 10, t);
+    mpz_get_str(s_str, 10, s);
+    std::cout << "s: " << s_str << std::endl;
+    std::cout << "t: " << t_str << std::endl;
+    mpz_t seed;
+    mpz_init_set_str(seed, std::to_string(1000 + rand() % 100000).c_str(), 0);
+    gmp_randinit_default(state);
+    gmp_randseed(state, seed);
+
+    for (int i = 0; i < k; ++i)
+    {
+        mpz_sub_ui(tmp_oprd, n, 2);
+        mpz_urandomm(tmp_oprd, state, tmp_oprd);
+        mpz_add_ui(a, tmp_oprd, 2);
+        mpz_powm(x, a, t, n);
+        mpz_sub_ui(tmp_oprd, n, 1);
+        if (mpz_cmp_ui(x, 1) == 0 || mpz_cmp(x, tmp_oprd) == 0)
+        {
+            goto loop;
+        }
+
+        for (mpz_set_ui(r, 1); mpz_cmp(r, s) < 0; mpz_add_ui(r, r, 1))
+        {
+            // x = (x * x) % n;
+            mpz_mul(x, x, x);
+            mpz_mod(x, x, n);
+            // std::cout << "x: " << x << std::endl;
+            if (mpz_cmp_ui(x, 1) == 0)
+                return false;
+            mpz_sub_ui(tmp_oprd, n, 1);
+            if (mpz_cmp(x, tmp_oprd) == 0)
+                goto loop;
+        }
+        return false;
+
+    loop:
+        continue;
+    }
+    return true;
+}
+
+void nextprime(mpz_t &rop, const mpz_t op)
+{
+    mpz_set(rop, op);
+    char rop_str[1000], op_str[1000];
+
+    mpz_get_str(rop_str, 10, rop);
+    mpz_get_str(op_str, 10, op);
+    std::cout << " rop : " << rop_str << std::endl;
+    std::cout << " op : " << op_str << std::endl;
+
+    std::cout << "Odd OP ? " << mpz_odd_p(rop) << std::endl;
+    if (mpz_even_p(op) != 0)
+    {
+        mpz_add_ui(rop, op, 1);
+        mpz_get_str(rop_str, 10, rop);
+        mpz_get_str(op_str, 10, op);
+        std::cout << " rop : " << rop_str << std::endl;
+        std::cout << " op : " << op_str << std::endl;
+    } // If op is even
+    std::cout << "Odd OP ? " << mpz_odd_p(rop) << std::endl;
+    while (rabin_miller(100000, rop) != true)
+    {
+        mpz_add_ui(rop, rop, 2);
+        mpz_get_str(rop_str, 10, rop);
+        mpz_get_str(op_str, 10, op);
+        std::cout << " rop : " << rop_str << std::endl;
+        std::cout << " op : " << op_str << std::endl;
+    }
 }
 
 /* Main subroutine */
@@ -89,6 +207,23 @@ int main()
     mpz_init(M);
     mpz_init(c);
 
+    mpz_t fg;
+    mpz_init(fg);
+    mpz_set_ui(fg, 37447);
+
+    bool is_primal = rabin_miller(100000, fg);
+    if (is_primal)
+        std::cout << "Rabi_Jacob : Number primal" << std::endl;
+    else
+        std::cout << "Rabi_Jacob : Number composite" << std::endl;
+
+    mpz_add_ui(fg, fg, 2);
+
+    is_primal = rabin_miller(100000, fg);
+    if (is_primal)
+        std::cout << "Rabi_Jacob : Number primal" << std::endl;
+    else
+        std::cout << "Rabi_Jacob : Number composite" << std::endl;
     /* This function creates the keys. The basic algorithm is...
      *
      *  1. Generate two large distinct primes p and q randomly
@@ -130,8 +265,10 @@ int main()
     mpz_urandomm(p_tmp, state, seed);
     mpz_urandomm(q_tmp, state, seed);
 
-    mpz_nextprime(p, p_tmp);
-    mpz_nextprime(q, q_tmp);
+    // mpz_nextprime(p, p_tmp);
+    // mpz_nextprime(q, q_tmp);
+    nextprime(p, p_tmp);
+    nextprime(q, q_tmp);
 
     mpz_get_str(p_tmp_str, 10, p_tmp);
     mpz_get_str(p_str, 10, p);
@@ -145,12 +282,6 @@ int main()
     std::cout << "Random 'q' tmp = " << q_tmp_str << std::endl;
     std::cout << "Random Prime 'q' = " << q_str << std::endl;
     std::cout << "**************************************" << std::endl;
-
-    // mpz_get_str(p_str, 10, p);
-    // mpz_get_str(q_str, 10, q);
-
-    // std::cout << "Random Prime 'p' = " << p_str << std::endl;
-    // std::cout << "Random Prime 'q' = " << q_str << std::endl;
 
     /*
      *  Step 2 : Calculate n (=pq) ie the 1024 bit modulus
@@ -230,7 +361,7 @@ int main()
      */
     mpz_t m;
     mpz_t c;
-    
+
     mpz_init(m);
     mpz_init(c);
 
@@ -251,7 +382,7 @@ int main()
      */
     mpz_t c2;
     mpz_t m2;
-    
+
     mpz_init(m2);
     mpz_init(c2);
 
