@@ -31,8 +31,10 @@ void exponentiation_by_squaring(mpz_t &m, const mpz_t &g, const mpz_t &k, const 
         mpz_init(one);
         mpz_set_ui(one, 1);
 
-        mpz_fdiv_q(g_tmp, one, g_tmp); //g=1/g
-        mpz_mul_si(k_tmp, k_tmp, -1);  //k=k*(-1)
+        // g = 1 / g
+        mpz_fdiv_q(g_tmp, one, g_tmp);
+        // k = k * (-1)
+        mpz_mul_si(k_tmp, k_tmp, -1);
         mpz_clear(one);
     }
     if (mpz_cmp_si(k_tmp, 0) == 0)
@@ -71,19 +73,24 @@ void exponentiation_by_squaring(mpz_t &m, const mpz_t &g, const mpz_t &k, const 
     }
 
     // m = g * y
-    // std::cout << "g: " << mpz_get_ui(g_tmp) << std::endl;
-    // std::cout << "y: " << mpz_get_ui(y) << std::endl;
-
     mpz_mul(m, g_tmp, y);
     mpz_mod(m, m, p_tmp);
 }
 
-void rabin_miller_step_1_dif(mpz_t &s, mpz_t &t, const mpz_t &n)
+bool rabin_miller(int k, const mpz_t &n)
 {
-    mpz_t local_n;
-    char t_str[1000];
-    char s_str[1000];
-    mpz_init(local_n);
+    if (mpz_get_si(n) <= 2 && mpz_odd_p(n))
+        return false;
+
+    gmp_randstate_t state;
+    mpz_t t, s, a, x, r, tmp_oprd;
+
+    mpz_init(t);
+    mpz_init(s);
+    mpz_init(a);
+    mpz_init(x);
+    mpz_init(r);
+    mpz_init(tmp_oprd);
 
     mpz_set(t, n);
     mpz_sub_ui(t, t, 1);
@@ -93,42 +100,8 @@ void rabin_miller_step_1_dif(mpz_t &s, mpz_t &t, const mpz_t &n)
     {
         mpz_fdiv_q_ui(t, t, 2);
         mpz_add_ui(s, s, 1);
-        mpz_get_str(t_str, 10, t);
-        mpz_get_str(s_str, 10, s);
-        // std::cout << " t : " << t_str << std::endl;
-        // std::cout << " s : " << s_str << std::endl;
     }
-}
 
-bool rabin_miller(int k, const mpz_t &n)
-{
-    // std::cout << "Rabin Miller" << std::endl;
-
-    char n_str[1000];
-    mpz_get_str(n_str, 10, n);
-    // std::cout << "n: " << n_str << std::endl;
-
-    if (mpz_get_si(n) <= 2 && mpz_odd_p(n))
-        return false;
-
-    gmp_randstate_t state;
-    mpz_t t, s, a, x, r, tmp_oprd;
-
-    char t_str[1000];
-    char s_str[1000];
-
-    mpz_init(t);
-    mpz_init(s);
-    mpz_init(a);
-    mpz_init(x);
-    mpz_init(r);
-    mpz_init(tmp_oprd);
-    rabin_miller_step_1_dif(s, t, n);
-
-    mpz_get_str(t_str, 10, t);
-    mpz_get_str(s_str, 10, s);
-    // std::cout << "s: " << s_str << std::endl;
-    // std::cout << "t: " << t_str << std::endl;
     mpz_t seed;
     mpz_init_set_str(seed, std::to_string(1000 + rand() % 100000).c_str(), 0);
     gmp_randinit_default(state);
@@ -232,23 +205,13 @@ void invert(mpz_t &rop, const mpz_t op1, const mpz_t op2)
 {
     mpz_t r, u, v;
 
-    char r_str[1000], u_str[1000], v_str[1000];
-
     mpz_init(r);
     mpz_init(u);
     mpz_init(v);
 
     euclide_etendu(op1, op2, r, u, v);
 
-    mpz_get_str(r_str, 10, r);
-    mpz_get_str(u_str, 10, u);
-    mpz_get_str(v_str, 10, v);
-
-    std::cout << "r: " << r_str << std::endl;
-    std::cout << "u: " << u_str << std::endl;
-    std::cout << "v :" << v_str << std::endl;
-
-    mpz_abs(rop, u);
+    mpz_set(rop, u);
 
     mpz_clear(r);
     mpz_clear(u);
@@ -258,6 +221,33 @@ void invert(mpz_t &rop, const mpz_t op1, const mpz_t op2)
 /* Main subroutine */
 int main()
 {
+    bool exp_rap = false, rabi_jacob = false, euclide = false;
+    int choice;
+
+    std::cout << "**************************************" << std::endl;
+    std::cout << "Which of our algorithm would you like to use:" << std::endl;
+    std::cout << "\t -1) Exponentiation Rapide" << std::endl;
+    std::cout << "\t -2) Rabin-Miller" << std::endl;
+    std::cout << "\t -3) Euclide Etendu" << std::endl;
+    std::cout << "**************************************" << std::endl;
+    std::cin >> choice;
+
+    switch (choice)
+    {
+    case 1:
+        exp_rap = true;
+        std::cout << "Exponentiation Rapide has been selected" << std::endl;
+        break;
+    case 2:
+        rabi_jacob = true;
+        std::cout << "Rabin Miller has been selected" << std::endl;
+        break;
+    case 3:
+        euclide = true;
+        std::cout << "Euclide Etendu has been selected" << std::endl;
+        break;
+    }
+
     /* Initialize the GMP integers */
     mpz_init(d);
     mpz_init(e);
@@ -293,9 +283,6 @@ int main()
     mpz_init(q_tmp);
     mpz_init(seed);
 
-    // mpz_init_set_str(p, "47", 0);
-    // mpz_init_set_str(q, "71", 0);
-
     // -- Generation and randomisation of a prime number p
     srand(time(NULL)); // -- Initialization of a seed based on time
 
@@ -307,10 +294,16 @@ int main()
     mpz_urandomm(p_tmp, state, seed);
     mpz_urandomm(q_tmp, state, seed);
 
-    // mpz_nextprime(p, p_tmp);
-    // mpz_nextprime(q, q_tmp);
-    nextprime(p, p_tmp);
-    nextprime(q, q_tmp);
+    if (rabi_jacob)
+    {
+        nextprime(p, p_tmp);
+        nextprime(q, q_tmp);
+    }
+    else
+    {
+        mpz_nextprime(p, p_tmp);
+        mpz_nextprime(q, q_tmp);
+    }
 
     mpz_get_str(p_tmp_str, 10, p_tmp);
     mpz_get_str(p_str, 10, p);
@@ -375,27 +368,29 @@ int main()
         mpz_gcd(pgcd, e, x);
     } while (mpz_get_ui(pgcd) != 1);
 
-    // mpz_init_set_str(e, "79", 0);
     mpz_get_str(e_str, 10, e);
     std::cout << "\t e = " << e_str << std::endl;
 
     /*
      *  Step 4 : Calculate unique d such that ed = 1(mod x)
      */
-    // if (mpz_invert(d, e, x) == 0)
-    //     std::cout << "Error while inversing e mod x" << std::endl;
 
     char x_str[1000];
     mpz_get_str(x_str, 10, x);
     std::cout << "\t x = " << x_str << std::endl;
 
-    invert(d, e, x);
+    if (euclide)
+    {
+        invert(d, e, x);
+    }
+    else
+    {
+        mpz_invert(d, e, x);
+    }
 
-    // mpz_init_set_str(d, "1019", 0);
     char d_str[1000];
     mpz_get_str(d_str, 10, d);
-    std::cout << "\t d = " << d_str << std::endl
-              << std::endl;
+    std::cout << "\t d = " << d_str << std::endl;
 
     /*
      *  Step 5 : Print the public and private key pairs...
@@ -415,14 +410,21 @@ int main()
     char m_str[1000];
     char c_str[1000];
 
-    std::cout << "Message à chiffrer " << std::endl;
+    std::cout << "Message to cipher: " << std::endl;
     std::cin >> m_str;
-    // TODO: check m < n
     mpz_set_str(m, m_str, 10);
-    // mpz_powm(c, m, e, n);
-    exponentiation_by_squaring(c, m, e, n);
+
+    if (exp_rap)
+    {
+        exponentiation_by_squaring(c, m, e, n);
+    }
+    else
+    {
+        mpz_powm(c, m, e, n);
+    }
+
     mpz_get_str(c_str, 10, c);
-    std::cout << "Message chiffré: " << c_str << std::endl;
+    std::cout << "Message ciphered: " << c_str << std::endl;
 
     /*
      *  Decrypt
@@ -436,13 +438,21 @@ int main()
     char m2_str[1000];
     char c2_str[1000];
 
-    std::cout << "Message à déchiffrer ? " << std::endl;
+    std::cout << "Message to decipher:" << std::endl;
     std::cin >> c2_str;
     mpz_set_str(c2, c2_str, 10);
-    // mpz_powm(m2, c2, d, n);
-    exponentiation_by_squaring(m2, c2, d, n);
+
+    if (exp_rap)
+    {
+        exponentiation_by_squaring(m2, c2, d, n);
+    }
+    else
+    {
+        mpz_powm(m2, c2, d, n);
+    }
+
     mpz_get_str(m2_str, 10, m2);
-    std::cout << "Message déchiffré: " << m2_str << std::endl;
+    std::cout << "Message deciphered:" << m2_str << std::endl;
 
     /* Clean up the GMP integers */
     mpz_clear(p_minus_1);
